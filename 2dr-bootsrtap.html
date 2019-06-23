@@ -1,0 +1,403 @@
+<!--
+2-dimensional version of Rubik's Cube version 1.0.0. Implementation with Bootstrap.
+Copyright 2019 Sergii Redchuk.
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see https://www.gnu.org/licenses/.
+-->
+<!--
+Thanks to josedvq for the square boxes! https://jsfiddle.net/josedvq/38Tnx/
+Thanks to Icons8 for the arrow icons! https://img.icons8.com
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <link rel="stylesheet"
+        href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
+        crossorigin="anonymous">
+  <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js"
+          integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo"
+          crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+          integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+          crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+          integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+          crossorigin="anonymous"></script>
+
+  <title>2-dimensional version of Rubik's Cube</title>
+
+  <style>
+    .square-box {
+      position: relative;
+      width: 50%;
+      overflow: hidden;
+      background: white;
+    }
+    .square-box:before {
+      content: "";
+      display: block;
+      padding-top: 100%;
+    }
+    .square-content {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      color: white;
+    }
+    .square-content div {
+      display: table;
+      width: 100%;
+      height: 100%;
+    }
+    .square-content span {
+      display: table-cell;
+      text-align: center;
+      vertical-align: middle;
+      color: white
+    }
+
+    .click {
+      cursor: pointer;
+    }
+
+    /* xs */
+    .container {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    h4 { font-size: 1rem; }
+    .col, .col-2, .col-3, .col-4, .col-5, .col-6 { font-size: 0.75rem; }
+    img {
+      width: 16px;
+      height: 16px;
+    }
+    /* sm */
+    @media (min-width: 768px) {
+      h4 { font-size: 1.25rem; }
+      .col, .col-2, .col-3, .col-4, .col-5, .col-6 { font-size: 1rem; }
+      img {
+        width: 28px;
+        height: 28px;
+      }
+    }
+    /* md */
+    @media (min-width: 992px) {
+      .container {
+        width: 50% !important;
+        height: 50% !important;
+      }
+      h4 { font-size: 1.5rem; }
+      .col, .col-2, .col-3, .col-4, .col-5, .col-6 { font-size: 1.25rem; }
+      img {
+        width: 36px;
+        height: 36px;
+      }
+    }
+    /* lg */
+    @media (min-width: 1200px) {
+      h4 { font-size: 1.75rem; }
+      .col, .col-2, .col-3, .col-4, .col-5, .col-6 { font-size: 1.5rem; }
+    }
+  </style>
+
+  <script>
+    const trivialsV = ["100100100", "010010010", "001001001", "011011011", "101101101", "110110110"];
+    const trivialsH = ["111000000", "000111000", "000000111", "000111111", "111000111", "111111000"];
+    const trivials = trivialsV.concat(trivialsH);
+    let state;
+    let moves;
+
+    function getSqValue(state, i ,j) {
+      return state[i + 3*j];
+    }
+
+    function setSqValue(state, i ,j, v) {
+      state[i + 3*j] = v;
+    }
+
+    function renderPuzzle() {
+      for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+          let sqState = getSqValue(state, i ,j);
+          $("#sq" + i.toString() + j.toString())
+            .removeClass(sqState ? "bg-primary" : "bg-warning")
+            .addClass(sqState ? "bg-warning" : "bg-primary");
+        }
+      }
+    }
+
+    function resetPuzzle() {
+      state = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+      moves = -1;
+      registerMove();
+      $("#done").addClass("d-none");
+      renderPuzzle();
+    }
+
+    function invert(v) {
+      return 1 - v;
+    }
+
+    function rotateRow(state, j) {
+      let v0 = getSqValue(state, 0, j);
+      let v1 = getSqValue(state, 1, j);
+      let v2 = getSqValue(state, 2, j);
+      setSqValue(state, 0, j, invert(v2));
+      setSqValue(state, 1, j, invert(v1));
+      setSqValue(state, 2, j, invert(v0));
+    }
+
+    function rotateColumn(state, i) {
+      let v0 = getSqValue(state, i, 0);
+      let v1 = getSqValue(state, i, 1);
+      let v2 = getSqValue(state, i, 2);
+      setSqValue(state, i, 0, invert(v2));
+      setSqValue(state, i, 1, invert(v1));
+      setSqValue(state, i, 2, invert(v0));
+    }
+
+    function registerMove() {
+      moves += 1;
+      $("#moves").html(moves);
+    }
+
+    function isPuzzleDone() {
+      return !(state.includes(0) && state.includes(1));
+    }
+
+    function checkIfDone() {
+      if (isPuzzleDone()) {
+        $("#done").removeClass("d-none");
+      }
+    }
+
+    function moveColumn(i) {
+      registerMove();
+      rotateColumn(state, i);
+      renderPuzzle();
+      checkIfDone();
+    }
+
+    function moveRow(j) {
+      registerMove();
+      rotateRow(state, j);
+      renderPuzzle();
+      checkIfDone();
+    }
+
+    function scramblePuzzle() {
+      resetPuzzle();
+      let prevDirection = 0;
+      let prevIndex = 0;
+      for (let k = 0; k < 8; k++) {
+        let direction = Math.random() < 0.5 ? 0 : 1;
+        if (direction == prevDirection) {
+          direction = 1 - direction;
+        }
+        let index = Math.floor((Math.random() * 3));
+        if (index == prevIndex) {
+          if (index == 1) {
+            index += Math.random() < 0.5 ? -1 : 1;
+          } else {
+            index = Math.random() < 0.5 ? 1 : 2 - index;
+          }
+        }
+        (direction ? rotateColumn : rotateRow)(state, index);
+        if (k > 1 && trivials.indexOf(state.join("")) > -1) {
+          (direction ? rotateColumn : rotateRow)(state, index);
+        }
+        prevDirection = direction;
+        prevIndex = index;
+      }
+      renderPuzzle();
+    }
+
+    function generateRotationTooltip(direction, index) {
+      let tooltipState = state.slice(0);
+      (direction == "V" ? rotateColumn : rotateRow)(tooltipState, index);
+      let tooltip = "";
+      for (let j = 0; j < 3; j++) {
+        tooltip += "<div>";
+        for (let i = 0; i < 3; i++) {
+          let sqState = getSqValue(tooltipState, i ,j);
+          tooltip += sqState
+              ? "<span class='bg-warning m-1'>&nbsp;&nbsp;&nbsp;</span>"
+              : "<span class='bg-primary m-1'>&nbsp;&nbsp;&nbsp;</span>";
+        }
+        tooltip += "</div>";
+      }
+      return tooltip;
+    }
+
+    $(document).ready(function(){
+      resetPuzzle();
+      $("#sqReset").click(resetPuzzle);
+      $("#sqScramble").click(scramblePuzzle);
+      for (let k = 0; k < 3; k++) {
+        $("#rotateV" + k).addClass("click").click(function () {
+          moveColumn(k);
+        }).attr("src", "https://img.icons8.com/office/40/000000/thick-arrow-pointing-down.png");
+        $("#rotateH" + k).addClass("click").click(function () {
+          moveRow(k);
+        }).attr("src", "https://img.icons8.com/office/40/000000/arrow.png");
+      }
+
+      $('[id^="rotateH"]').popover({
+        placement : 'top',
+        trigger : 'hover',
+        html : true,
+        container: 'body',
+        content : function () {
+          return generateRotationTooltip("H", parseInt($(this).attr("id").substr(7)));
+        }
+      });
+      $('[id^="rotateV"]').popover({
+        placement : 'top',
+        trigger : 'hover',
+        html : true,
+        container: 'body',
+        content : function () {
+          return generateRotationTooltip("V", parseInt($(this).attr("id").substr(7)));
+        }
+      });
+      $(window).on('resize', function() {
+        if ($(this).width() < 182) {
+          $("#field").addClass("d-none");
+          $("#screen_too_small").removeClass("d-none");
+        } else {
+          $("#screen_too_small").addClass("d-none");
+          $("#field").removeClass("d-none");
+        }
+      });
+    });
+  </script>
+</head>
+<body>
+  <div class="container bg-secondary p-3 text-white">
+    <div class="row">
+      <div class="col d-flex justify-content-center pb-3">
+        <h4>Rubik's Cube in 2D</h4>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-3">
+        <span>Moves:</span> <span id="moves" class="p-2 font-weight-bold"></span>
+      </div>
+      <div class="col-2">
+        <span id="done" class="d-none text-success bg-light rounded p-2 font-weight-bold">Well&nbsp;done!</span>
+      </div>
+      <div class="col-12 col-sm-7 d-flex flex-row-reverse">
+        <button type="button" class="btn btn-danger btn-sm" id="sqReset">Reset</button>
+        <button type="button" class="btn btn-danger btn-sm mr-3" id="sqScramble">Scramble</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container bg-dark p-3" id="field">
+    <div class="row">
+      <div class="col-2">
+      </div>
+      <div class="col-10">
+        <div class="row">
+          <div class="m-1 w-25 h-25 d-flex justify-content-center">
+            <img id="rotateV0">
+          </div>
+          <div class="m-1 w-25 h-25 d-flex justify-content-center">
+            <img id="rotateV1">
+          </div>
+          <div class="m-1 w-25 h-25 d-flex justify-content-center">
+            <img id="rotateV2">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-2 d-flex align-items-center justify-content-end">
+        <img id="rotateH0">
+      </div>
+      <div class="col-10">
+        <div class="row">
+          <div class="rounded-lg m-1 w-25 h-25 square-box" id="sq00">
+            <div class='square-content'> </div>
+          </div>
+          <div class="rounded-lg m-1 w-25 h-25 square-box" id="sq10">
+            <div class='square-content'> </div>
+          </div>
+          <div class="rounded-lg m-1 w-25 h-25 square-box" id="sq20">
+            <div class='square-content'> </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-2 d-flex align-items-center justify-content-end">
+        <img id="rotateH1">
+      </div>
+      <div class="col-10">
+        <div class="row">
+          <div class="rounded-lg m-1 w-25 h-25 square-box" id="sq01">
+            <div class='square-content'> </div>
+          </div>
+          <div class="rounded-lg m-1 w-25 h-25 square-box" id="sq11">
+            <div class='square-content'> </div>
+          </div>
+          <div class="rounded-lg m-1 w-25 h-25 square-box" id="sq21">
+            <div class='square-content'> </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-2 d-flex align-items-center justify-content-end">
+        <img id="rotateH2">
+      </div>
+      <div class="col-10">
+        <div class="row">
+          <div class="rounded-lg m-1 w-25 h-25 square-box" id="sq02">
+            <div class='square-content'> </div>
+          </div>
+          <div class="rounded-lg m-1 w-25 h-25 square-box" id="sq12">
+            <div class='square-content'>&nbsp;</div>
+          </div>
+          <div class="rounded-lg m-1 w-25 h-25 square-box" id="sq22">
+            <div class='square-content'>&nbsp;</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="d-none bg-dark p-3" id="screen_too_small">
+    <div class="row">
+      <div class="col text-danger font-weight-bold">
+        Please try larger screen.
+      </div>
+    </div>
+  </div>
+  <div class="container bg-dark p-3">
+    <div class="row align-items-center">
+      <div class="col text-center text-light">
+        <small>Implemented with Bootstrap (c)&nbsp;2019&nbsp;Sergii&nbsp;Redchuk</small>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
